@@ -1,7 +1,16 @@
 import nltk
-from nltk.tokenize import word_tokenize
+from nltk import word_tokenize, pos_tag, ne_chunk
+from nltk.tree import Tree
 import re
 import unittest
+
+"""
+Author: Timothy Shine
+
+Parses results from Optical Character Recognition (OCR)
+Extracts name, phone number and email address from business card
+Provides sample test cases and sample main output
+"""
 
 class ContactInfo:
     def __init__(self, name, email, phone):
@@ -35,11 +44,12 @@ class BusinessCardParser:
             with f:
                 lines = f.readlines()
                 self.lines = [x.strip() for x in lines]
-                self.occupations = ["engineer", "developer", "computer", "scientist", "technology", "analyst", "system", "manager", "mathematician", "entrepreneur"]
+                self.occupations = ["engineer", "developer", "computer", "scientist", 
+                                    "technology", "analyst", "system", "manager", 
+                                    "mathematician", "entrepreneur"]            #list of job keywords for NLP
                 self.name = self._process_name()
                 self.phone_number = self._process_phone_number()
                 self.email_address = self._process_email_address()
-
                 return ContactInfo(self.name, self.email_address, self.phone_number)
 
     def _process_name(self):
@@ -48,11 +58,11 @@ class BusinessCardParser:
             Peron's name is returned
             Short circuiting was used to return the name: most often the name is one of the first lines so it stops need to traverse through whole list"""
         for line in self.lines:
-            list_of_words = nltk.word_tokenize(line)
-            for chunk in nltk.ne_chunk(nltk.pos_tag(list_of_words)):
-                if type(chunk) == nltk.tree.Tree and not any(word in line.lower() for word in self.occupations):
+            list_of_words = nltk.word_tokenize(line)                    #tokenizes each line into a list of words
+            for chunk in nltk.ne_chunk(nltk.pos_tag(list_of_words)):    #Part of speech tag as well as named entity chunking on each chunk of tokens
+                if type(chunk) == Tree and not any(word in line.lower() for word in self.occupations):  #double checks each is a proper chunk not containing a job keyword
                     if chunk.label() == 'PERSON':
-                        return line        
+                        return line     #is a person's name
 
     def _process_phone_number(self):
         """Determines which line is a phone number in the document using a regular expression
@@ -60,7 +70,7 @@ class BusinessCardParser:
         for line in self.lines:
             is_fax = re.match(r'^(Fax|Facsimile|F):?', line, re.IGNORECASE)
             if is_fax:
-                continue #is a fax number
+                continue        #is a fax number
             else:
                 result = re.match(r'^([\w ]+)?:?\s*\+?(\d+)?\s?\(?(\d{3})\)?[ .-]?(\d{3})[ .-]?(\d{4})$', line)
                 if result:
@@ -76,11 +86,11 @@ class BusinessCardParser:
         for line in self.lines:
             is_email = re.match(r'^([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z{2,}]+)', line)
             if is_email:
-                return is_email.group(0)
+                return is_email.group(0)    #email without the indicator "Email:" or variant
             else:
-                is_email = re.match(r'^\w+:?\s([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z{2,}]+)', line)
+                is_email = re.match(r'^(\w+:?\s?)([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z{2,}]+)', line)
                 if is_email:
-                    return is_email.group(0)[0]
+                    return is_email.group(2) #email with the indicator "Email:" or variant
         return None
 
 def main():
