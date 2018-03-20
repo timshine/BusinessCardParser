@@ -3,7 +3,7 @@
 **This program is a business card reader with the following attributes**
   * Uses parsed results from Optical Character Recognition (OCR)
   * Extracts name, phone number and email address from business card
-  * Provides sample test cases and sample main() output
+  * Provides sample test cases and sample main() output using the Input.txt file
   
 ## How to Setup ##
   * Install Natural Language Toolkit (NLTK) from [Install NLTK Module](https://www.nltk.org/install.html)
