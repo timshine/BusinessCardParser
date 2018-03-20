@@ -1,20 +1,48 @@
 import nltk
 from nltk.tokenize import word_tokenize
-import unittest
 import re
+import unittest
 
 class ContactInfo:
-    
-    def __init__(self,document):
-        """Initializes the variables for the program
-            Opens the text files and stores the lines as a list of Strings
-            Occupations is a list of job keywords to fix the NLTK recognizing occupations as PERSON"""
-        with open (document) as f:
-            lines = f.readlines()
-            self.lines = [x.strip() for x in lines]
-            self.occupations = ["engineer", "developer", "computer", "scientist", "technology", "analyst", "system", "manager", "mathematician", "entrepreneur"]
+    def __init__(self, name, email, phone):
+        self.name = name
+        self.email = email
+        self.phone = phone
 
     def get_name(self):
+        """Returns the contact's name""" 
+        return self.name
+
+    def get_email_address(self):
+        """Returns the contact's email address""" 
+        return self.email
+
+    def get_phone_number(self):
+        """Returns the contact's phone number"""
+        return self.phone
+
+class BusinessCardParser:
+    def get_contact_info(self, document):
+        """Initializes the variables for the program
+            Opens the text files and stores the lines as a list of Strings
+            Occupations is a list of job keywords to fix the NLTK recognizing occupations as PERSON
+            Sets variables of name, phone_number, and email_address to their respective values from processing functions"""
+        try:
+            f = open (document, 'r')
+        except FileNotFoundError:
+            return "Can't open ", document
+        else:    
+            with f:
+                lines = f.readlines()
+                self.lines = [x.strip() for x in lines]
+                self.occupations = ["engineer", "developer", "computer", "scientist", "technology", "analyst", "system", "manager", "mathematician", "entrepreneur"]
+                self.name = self._process_name()
+                self.phone_number = self._process_phone_number()
+                self.email_address = self._process_email_address()
+
+                return ContactInfo(self.name, self.email_address, self.phone_number)
+
+    def _process_name(self):
         """Uses natural language processing to determine human names from other parts of speech in each line
             NLTK takes occupations to be labeled as PERSON so a list of occuraptions must be additionally checked to prevent inaccurate data
             Peron's name is returned
@@ -26,49 +54,51 @@ class ContactInfo:
                     if chunk.label() == 'PERSON':
                         return line        
 
-    def get_phone_number(self):
-        """Captures any line that has more than 9 numbers in it and with first pass names it a phone number
-            Checks that same line for indications of it being a fax number rather than a phone number and only returns phone number
-            If more than one number is given (ie. work and mobile) both numbers will be returned in a list"""
+    def _process_phone_number(self):
+        """Determines which line is a phone number in the document using a regular expression
+            Checks to see if the line is a fax number before returning: will not return fax numbers"""
         for line in self.lines:
-            phone_number=list()
-            for char in line:
-                try:
-                    phone_number.append(int(char))
-                except ValueError:
-                    continue
-            if len(phone_number)>=9 and ("fax" or "f") not in line.lower():
-                return ''.join(str(num) for num in phone_number)
+            is_fax = re.match(r'^(Fax|Facsimile|F):?', line, re.IGNORECASE)
+            if is_fax:
+                continue #is a fax number
+            else:
+                result = re.match(r'^([\w ]+)?:?\s*\+?(\d+)?\s?\(?(\d{3})\)?[ .-]?(\d{3})[ .-]?(\d{4})$', line)
+                if result:
+                    return "{}{}{}{}".format((result.groups(0)[1] if str(result.groups(0)[1]) != '0' else ""), # country code
+                                         result.groups(0)[2], # area code
+                                         result.groups(0)[3], # NPA
+                                         result.groups(0)[4]) # line number
+        return None        
 
-
-    def get_email_address(self):
+    def _process_email_address(self):
         """An email is characterized by one or more characters followed by @ symbol, one or more characters, a period and finally one or more characters
             A regular expression is used to find any lines with this format"""
-        email_regex = re.compile(r'[^@]+@[^@]+\.[^@]+')
         for line in self.lines:
-            match = email_regex.match(line)
-            if match:
-                return match.group() 
+            is_email = re.match(r'^([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z{2,}]+)', line)
+            if is_email:
+                return is_email.group(0)
+            else:
+                is_email = re.match(r'^\w+:?\s([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z{2,}]+)', line)
+                if is_email:
+                    return is_email.group(0)[0]
         return None
 
-    def get_contact_info(self):
-        """Returns get_name, get_phone_number, and get_email_address with proper formatting"""
-        return "Name: {}\nPhone Number: {}\nEmail Address: {}".format(self.get_name(), self.get_phone_number(), self.get_email_address())
-
-class BusinessCardParser:
-
-    def get_contact_info(self, document):
-        return ContactInfo(document).get_contact_info()
-        
-        
 def main():
-    print(BusinessCardParser().get_contact_info("Input.txt"))
+    """Example output for BusinessCardParser and functions that can be accessed"""
+    fname = 'Input.txt'
+    parser = BusinessCardParser()
+    contact = parser.get_contact_info(fname)
+    print("Name:", contact.get_name())
+    print("Phone:", contact.get_phone_number())
+    print("Email:", contact.get_email_address())
+
 
 class TestChallenge(unittest.TestCase):
     def test_get_name(self):
-        self.assertEqual(ContactInfo('Input.txt').get_name(), 'Arthur Wilson')
-        self.assertEqual(ContactInfo('Input.txt').get_phone_number(), '17035551259')
-        self.assertEqual(ContactInfo('Input.txt').get_email_address(), 'awilson@abctech.com')
+        """Tests name, phone and email using Arthur Wilson test case in Input.txt"""
+        self.assertEqual(BusinessCardParser().get_contact_info("Input.txt").get_name(), 'Arthur Wilson')
+        self.assertEqual(BusinessCardParser().get_contact_info("Input.txt").get_phone_number(), '17035551259')
+        self.assertEqual(BusinessCardParser().get_contact_info("Input.txt").get_email_address(), 'awilson@abctech.com')
 
 if __name__ == '__main__':
     main()
